@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI-Powered PDF Analyzer</title>
+    <!-- Import custom styling -->
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+
+    <!-- Async Loader Overlay screen shown during processing -->
+    <div id="loader" class="loader-overlay">
+        <div class="loader-spinner"></div>
+        <div>
+            <div id="loader-status" class="loader-text">Downloading PDF Document...</div>
+            <div class="loader-subtext" style="margin-top: 0.5rem; text-align: center;">This may take a few seconds depending on document length.</div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Application Header -->
+        <header>
+            <div class="logo-badge">Amibee DocsAI</div>
+            <h1>Smart PDF Analyzer</h1>
+            <p>Extract, summarize, and categorize document metadata instantly using Generative AI.</p>
+        </header>
+
+        <!-- Main Form Glass Card -->
+        <div class="glass-card">
+            <form id="analyze-form" th:action="@{/analyze}" th:object="${analysisRequest}" method="post">
+                <div class="form-group">
+                    <label class="form-label" for="url">
+                        <!-- Icon -->
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                        Target PDF Document URL
+                    </label>
+                    <div class="form-input-container">
+                        <input type="url" id="url" th:field="*{url}" class="form-input" 
+                               placeholder="https://example.com/document.pdf" required autocomplete="off" />
+                        <button type="submit" class="btn">
+                            Analyze Document
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Validation & Error Display -->
+        <div th:if="${error}" class="alert-error">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+            <span th:text="${error}">An error occurred during parsing.</span>
+        </div>
+
+        <!-- Analysis Results Card -->
+        <div th:if="${result}" class="glass-card result-section">
+            <div class="result-header">
+                <!-- Document Type -->
+                <div class="meta-item">
+                    <span class="meta-label">Document Type</span>
+                    <span class="doc-type-badge" th:text="${result.documentType}">RESEARCH PAPER</span>
+                </div>
+                <!-- Document Title -->
+                <div class="meta-item">
+                    <span class="meta-label">Document Title</span>
+                    <h2 class="result-title" th:text="${result.title}">Document Title Placeholder</h2>
+                </div>
+                <!-- Authors -->
+                <div class="meta-item">
+                    <span class="meta-label">Author(s)</span>
+                    <div class="authors-list">
+                        <span class="author-tag" th:each="author : ${result.authors}" th:text="${author}">Author Name</span>
+                        <span class="author-tag" th:if="${#lists.isEmpty(result.authors)}">Unknown Author(s)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Meta details Grid -->
+            <div class="meta-grid">
+                <!-- Summary block -->
+                <div class="meta-box">
+                    <h3>Summary</h3>
+                    <div class="summary-content" th:text="${result.summary}">
+                        This is a placeholder of the generated document summary. It describes the main ideas and context.
+                    </div>
+                </div>
+
+                <!-- Key Takeaway block -->
+                <div class="meta-box">
+                    <h3>Key Takeaway</h3>
+                    <div class="takeaway-card">
+                        <p th:text="${result.keyTakeaway}">This is the key takeaway summarizing the study's core value.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer>
+            &copy; 2026 Amibee PDF Analyzer. AI-Powered Document Intelligence.
+        </footer>
+    </div>
+
+    <!-- Client-side logic for the loader workflow -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const form = document.getElementById("analyze-form");
+            const loader = document.getElementById("loader");
+            const statusText = document.getElementById("loader-status");
+
+            if (form) {
+                form.addEventListener("submit", function () {
+                    // Show glassmorphic loader screen
+                    loader.style.display = "flex";
+
+                    // Dynamic text updates to guide the user through the API steps
+                    const stages = [
+                        "Connecting to remote server...",
+                        "Downloading PDF content securely...",
+                        "Parsing PDF document bytes...",
+                        "Extracting text layout structures...",
+                        "Initiating Google Gemini AI Session...",
+                        "Running cognitive document analysis...",
+                        "Formulating structured meta response...",
+                        "Rendering visual dashboard..."
+                    ];
+
+                    let currentStage = 0;
+                    const interval = setInterval(() => {
+                        if (currentStage < stages.length - 1) {
+                            currentStage++;
+                            statusText.textContent = stages[currentStage];
+                        } else {
+                            clearInterval(interval);
+                        }
+                    }, 2000);
+                });
+            }
+        });
+    </script>
+</body>
+</html>
