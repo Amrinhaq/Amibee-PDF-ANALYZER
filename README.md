@@ -113,7 +113,7 @@ The application includes custom exception handling for:
 
 ## Author
 
-Amrin A
+Amrin Fathima Janofar A
 
 Computer Science Engineering Student
 
