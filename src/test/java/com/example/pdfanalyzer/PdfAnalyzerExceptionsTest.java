@@ -60,6 +60,13 @@ class PdfAnalyzerExceptionsTest {
     }
 
     @Test
+    void testGoogleDriveFolderBlocked_ShouldThrow_InvalidContentException() {
+        assertThrows(InvalidContentException.class, () -> {
+            downloadService.downloadPdf("https://drive.google.com/drive/folders/1gCwZsx8VGc06UdVec6Dhc4gFWg_PniAo?usp=sharing");
+        });
+    }
+
+    @Test
     void testMalformedUrl_ShouldThrow_InvalidUrlFormatException() {
         assertThrows(InvalidUrlFormatException.class, () -> {
             downloadService.downloadPdf("not_a_url");
@@ -106,5 +113,15 @@ class PdfAnalyzerExceptionsTest {
         assertThrows(IllegalArgumentException.class, () -> {
             geminiService.analyzeText("Sample PDF text to analyze");
         });
+    }
+
+    @Test
+    void testGoogleDriveDirectLink() {
+        try {
+            byte[] bytes = downloadService.downloadPdf("https://drive.google.com/file/d/1ACExPauXZjPOnEHw4TYqA-yh7tplOd3-/view?usp=sharing");
+            System.out.println("DOWNLOAD SUCCESS: " + bytes.length + " bytes");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }

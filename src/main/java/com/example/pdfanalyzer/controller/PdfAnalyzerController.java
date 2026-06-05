@@ -16,10 +16,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 
 import java.net.URI;
 
-/**
- * Controller class for the PDF Analyzer web application following MVC architecture.
- * Implements robust custom exception handling to protect system metadata.
- */
 @Controller
 @RequiredArgsConstructor
 @Slf4j

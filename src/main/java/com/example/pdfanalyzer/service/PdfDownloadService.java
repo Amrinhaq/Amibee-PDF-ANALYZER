@@ -43,6 +43,19 @@ public class PdfDownloadService {
     public byte[] downloadPdf(String urlString) {
         log.info("Downloading PDF from URL: {}", urlString);
         
+        // 1. Google Drive Folder Link Detection
+        if (urlString != null && urlString.contains("drive.google.com/drive/folders/")) {
+            log.warn("Blocked Google Drive folder URL: {}", urlString);
+            throw new InvalidContentException("This URL points to a Google Drive folder, not a direct PDF file. Please share the specific PDF file and copy its link.");
+        }
+
+        // 2. Auto-convert Google Drive file viewer URLs to direct download links
+        if (urlString != null && urlString.contains("drive.google.com/file/d/")) {
+            String convertedUrl = convertDriveUrl(urlString);
+            log.info("Auto-converted Google Drive share URL to direct download URL: {} -> {}", urlString, convertedUrl);
+            urlString = convertedUrl;
+        }
+
         int redirectCount = 0;
         String currentUrl = urlString;
 
@@ -51,13 +64,13 @@ public class PdfDownloadService {
                 URI uri = new URI(currentUrl).normalize();
                 URL url = uri.toURL();
 
-                // 1. Validate protocol is HTTP/HTTPS
+                // Validate protocol is HTTP/HTTPS
                 String protocol = url.getProtocol();
                 if (!"http".equalsIgnoreCase(protocol) && !"https".equalsIgnoreCase(protocol)) {
                     throw new InvalidUrlFormatException();
                 }
 
-                // 2. Validate host exists and block internal network endpoints (SSRF Check)
+                // Validate host exists and block internal network endpoints (SSRF Check)
                 String host = uri.getHost();
                 if (host == null || host.isEmpty()) {
                     throw new InvalidUrlFormatException();
@@ -76,7 +89,7 @@ public class PdfDownloadService {
                     throw new InvalidUrlFormatException();
                 }
 
-                // 3. Create request
+                // Create request
                 HttpRequest request = HttpRequest.newBuilder()
                         .uri(uri)
                         .timeout(Duration.ofSeconds(10))
@@ -84,12 +97,13 @@ public class PdfDownloadService {
                         .GET()
                         .build();
 
-                // 4. Send request
+                // Send request
                 HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
                 int statusCode = response.statusCode();
 
-                // 5. Intercept HTTP redirects (301, 302, 307, 308)
-                if (statusCode == 301 || statusCode == 302 || statusCode == 307 || statusCode == 308) {
+                // Intercept HTTP redirects (301, 302, 303, 307, 308)
+                // Note: 303 is commonly used by Google Drive API redirects
+                if (statusCode == 301 || statusCode == 302 || statusCode == 303 || statusCode == 307 || statusCode == 308) {
                     String location = response.headers().firstValue("Location").orElse(null);
                     if (location == null || location.isEmpty()) {
                         throw new RedirectedUrlException();
@@ -103,22 +117,31 @@ public class PdfDownloadService {
                     continue;
                 }
 
-                // 6. Handle URL Not Found
+                // Handle URL Not Found
                 if (statusCode == 404) {
                     log.warn("URL returned 404 Not Found");
                     throw new UrlNotFoundException();
                 }
 
-                // 7. Handle other HTTP errors
+                // Handle other HTTP errors
                 if (statusCode != 200) {
                     log.warn("Server returned HTTP error status: {}", statusCode);
                     throw new NetworkFailureException("HTTP error " + statusCode, null);
                 }
 
-                // 8. Validate Content-Type
+                // Validate Content-Type
+                // Support application/octet-stream and application/binary since Google Drive serves direct file downloads as binary streams
                 String contentType = response.headers().firstValue("Content-Type").orElse(null);
-
-                if (contentType == null || !contentType.toLowerCase().startsWith("application/pdf")) {
+                if (contentType != null) {
+                    contentType = contentType.toLowerCase();
+                }
+                
+                boolean isValidPdf = contentType != null && 
+                                     (contentType.startsWith("application/pdf") || 
+                                      contentType.startsWith("application/octet-stream") || 
+                                      contentType.startsWith("application/binary"));
+                
+                if (!isValidPdf) {
                     log.warn("Incorrect Content-Type received: {}", contentType);
                     if (redirectCount > 0) {
                         // The URL did redirect, but resulted in a non-PDF (like a landing page)
@@ -129,7 +152,7 @@ public class PdfDownloadService {
                     }
                 }
 
-                // 9. Validate Content-Length
+                // Validate Content-Length
                 long contentLength = response.headers().firstValueAsLong("Content-Length").orElse(-1L);
                 if (contentLength > MAX_FILE_SIZE_BYTES) {
                     log.warn("Content-Length exceeds 10MB: {}", contentLength);
@@ -137,7 +160,6 @@ public class PdfDownloadService {
                 }
 
                 byte[] body = response.body();
-
                 if (body == null || body.length == 0) {
                     throw new EmptyPdfException();
                 }
@@ -171,6 +193,26 @@ public class PdfDownloadService {
         } catch (Exception e) {
             log.error("Unexpected error in downloader: ", e);
             throw new UnexpectedErrorException("General error", e);
+        }
+    }
+
+    /**
+     * Converts a standard Google Drive file sharing/viewing link into a direct download API URL.
+     * Example: https://drive.google.com/file/d/FILE_ID/view?usp=sharing
+     * -> https://drive.google.com/uc?export=download&id=FILE_ID
+     */
+    private String convertDriveUrl(String url) {
+        try {
+            int startIndex = url.indexOf("/file/d/") + "/file/d/".length();
+            int endIndex = url.indexOf("/", startIndex);
+            if (endIndex == -1) {
+                endIndex = url.indexOf("?", startIndex);
+            }
+            String fileId = (endIndex != -1) ? url.substring(startIndex, endIndex) : url.substring(startIndex);
+            return "https://drive.google.com/uc?export=download&id=" + fileId;
+        } catch (Exception e) {
+            log.error("Failed to parse Google Drive file URL: {}", url, e);
+            return url;
         }
     }
 }

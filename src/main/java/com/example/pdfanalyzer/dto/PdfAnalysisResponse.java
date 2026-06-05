@@ -5,10 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.util.List;
 
-/**
- * Data Transfer Object (DTO) representing the structured result returned by the Google Gemini API.
- * The fields here match the JSON schema requested in the Gemini API call.
- */
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

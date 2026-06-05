@@ -41,10 +41,7 @@ public class GeminiService {
         this.objectMapper = objectMapper;
     }
 
-    /**
-     * Sends extracted text to Gemini API for analysis.
-     * Throws GeminiApiException if any connection, auth, or response errors occur.
-     */
+
     public PdfAnalysisResponse analyzeText(String extractedText) {
         log.info("Sending text to Gemini API for metadata extraction...");
 
